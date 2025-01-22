@@ -7,7 +7,7 @@ class SnowflakeDiscord:
         SnowflakeDiscord.__validate(id)
         
         self.id = id
-        self.timestamp, self.machine_id, self.sequence = SnowflakeDiscord.__parse(id)
+        self.timestamp, self.internal_worker_id, self.internal_process_id, self.sequence = SnowflakeDiscord.__parse(id)
     
     def __str__(self):
         return "Snowflake: {{ " \
@@ -15,34 +15,18 @@ class SnowflakeDiscord:
             f"timestamp: {self.timestamp}, " \
             f"machine_id: {self.machine_id}, " \
             f"sequence: {self.sequence}, " \
-            f"creation_time: {self.creation_time} " \
         "}}"
     
-    def creation_time_utc(self) -> datetime:
-        EPOCH = datetime.strptime(
-            "2015-1-1 00:00:00.000000",
-            "%Y-%m-%d %H:%M:%S.%f"
-        )
-        ct = EPOCH + timedelta(milliseconds=self.timestamp)
-        ct = ct.replace(tzinfo=tz.tzutc())
-        return ct
-    
-    def creation_time_local(self) -> datetime:
-        ct_utc = self.creation_time_utc()
-        ct_local = ct_utc.astimezone(tz.tzlocal())
-        return ct_local
-    
     def description(self) -> str:
-        ct = self.creation_time_local()
-        day = ordinal(ct.day)
-        moment_ms = datetime.strftime(ct, "%f")[:-3]
-        moment = datetime.strftime(ct, f"%B {day}, %Y at %H:%M and %S.{moment_ms} seconds (%Z)")
+        day = ordinal(self.timestamp.day)
+        moment_ms = datetime.strftime(self.timestamp, "%f")[:-3]
+        moment = datetime.strftime(self.timestamp, f"%B {day}, %Y at %H:%M and %S.{moment_ms} seconds (%Z)")
         
         rank = ordinal(self.sequence + 1)
         
         return f"This user account was created at {moment}. " \
-        f"The specific machine that generated its unique ID was identified with \"{self.machine_id}\". " \
-        f"And within the millisecond that the ID was generated, it was {rank} in queue to be processed by that machine."
+        f"The worker \"{self.internal_worker_id}\" and its process \"{self.internal_process_id}\" were involved in creating the ID. " \
+        f"And within the millisecond of its generation, it was the {rank} in queue to be served by that process."
     
     @staticmethod
     def __validate(id: int):
@@ -56,16 +40,18 @@ class SnowflakeDiscord:
             raise ValueError(err_msg + "above accepted range.")
     
     @staticmethod
-    def __parse(id: int) -> tuple[datetime, int, int]:
-        MASK_TIMESTAMP: int = 0xFFFFFFFFFFC00000
-        MASK_MACHINE_ID: int = 0x3FF000
-        MASK_SEQUENCE: int = 0xFFF
+    def __parse(id: int) -> tuple[datetime, int, int, int]:
+        EPOCH = datetime.fromtimestamp(1420070400).replace(tzinfo=tz.tzlocal())
+        MASK_INTERNAL_WORKER_ID = 0x3E0000
+        MASK_INTERNAL_PROCESS_ID = 0x1F000
+        MASK_SEQUENCE = 0xFFF
         
-        timestamp = (MASK_TIMESTAMP & id) >> 22
-        machine_id = (MASK_MACHINE_ID & id) >> 12
-        sequence = MASK_SEQUENCE & id
+        timestamp = EPOCH + timedelta(milliseconds=(id >> 22))
+        internal_worker_id = (id & MASK_INTERNAL_WORKER_ID) >> 17
+        internal_process_id = (id & MASK_INTERNAL_PROCESS_ID) >> 12
+        sequence = id & MASK_SEQUENCE
         
-        return timestamp, machine_id, sequence,
+        return timestamp, internal_worker_id, internal_process_id, sequence
 
 def ordinal(n: int):
     if 11 <= (n % 100) <= 13:
