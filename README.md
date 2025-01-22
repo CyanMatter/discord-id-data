@@ -1,5 +1,5 @@
 Users, messages, servers, channels, threads, DMs; Discord provides these objects and more with unique [snowflake IDs](https://discord.com/developers/docs/reference#snowflakes).
-The IDs can tell you something about the circumstances of the creation of it.
+The IDs can tell you something about the circumstances of their creation.
 This application extracts that information and displays it in a readable manner.
 
 It tells…
