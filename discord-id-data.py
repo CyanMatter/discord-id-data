@@ -24,7 +24,7 @@ class SnowflakeDiscord:
         
         rank = ordinal(self.sequence + 1)
         
-        return f"This user account was created at {moment}. " \
+        return f"This ID was created at {moment}. " \
         f"The worker \"{self.internal_worker_id}\" and its process \"{self.internal_process_id}\" were involved in creating the ID. " \
         f"And within the millisecond of its generation, it was the {rank} in queue to be served by that process."
     
@@ -63,7 +63,7 @@ def ordinal(n: int):
 def stderr_write(e: Exception):
     print(getattr(e, 'message', str(e)), file=stderr)
 
-instructions = "Enter a Discord User ID, or \"q\" to exit."
+instructions = "Enter a Discord ID, or \"q\" to exit."
 print(instructions)
 
 for query in stdin:
