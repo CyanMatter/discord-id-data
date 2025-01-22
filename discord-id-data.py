@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from dateutil import tz
 from sys import stderr, stdin
 
 class SnowflakeDiscord:
@@ -6,7 +7,7 @@ class SnowflakeDiscord:
         SnowflakeDiscord.__validate(id)
         
         self.id = id
-        self.timestamp, self.machine_id, self.sequence, self.creation_time = SnowflakeDiscord.__parse(id)
+        self.timestamp, self.machine_id, self.sequence = SnowflakeDiscord.__parse(id)
     
     def __str__(self):
         return "Snowflake: {{ " \
@@ -17,9 +18,25 @@ class SnowflakeDiscord:
             f"creation_time: {self.creation_time} " \
         "}}"
     
+    def creation_time_utc(self) -> datetime:
+        EPOCH = datetime.strptime(
+            "2015-1-1 00:00:00.000000",
+            "%Y-%m-%d %H:%M:%S.%f"
+        )
+        ct = EPOCH + timedelta(milliseconds=self.timestamp)
+        ct = ct.replace(tzinfo=tz.tzutc())
+        return ct
+    
+    def creation_time_local(self) -> datetime:
+        ct_utc = self.creation_time_utc()
+        ct_local = ct_utc.astimezone(tz.tzlocal())
+        return ct_local
+    
     def description(self) -> str:
-        day = ordinal(self.creation_time.day)
-        moment = datetime.strftime(self.creation_time, f"%B {day}, %Y at %H:%M and %S.%f seconds")
+        ct = self.creation_time_local()
+        day = ordinal(ct.day)
+        moment_ms = datetime.strftime(ct, "%f")[:-3]
+        moment = datetime.strftime(ct, f"%B {day}, %Y at %H:%M and %S.{moment_ms} seconds (%Z)")
         
         rank = ordinal(self.sequence + 1)
         
@@ -48,14 +65,7 @@ class SnowflakeDiscord:
         machine_id = (MASK_MACHINE_ID & id) >> 12
         sequence = MASK_SEQUENCE & id
         
-        EPOCH = datetime.strptime(
-            "2015-1-1 00:00:00.000",
-            "%Y-%m-%d %H:%M:%S.%f"
-        )
-        
-        creation_time = EPOCH + timedelta(milliseconds=timestamp)
-        
-        return timestamp, machine_id, sequence, creation_time
+        return timestamp, machine_id, sequence,
 
 def ordinal(n: int):
     if 11 <= (n % 100) <= 13:
